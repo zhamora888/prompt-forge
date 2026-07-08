@@ -1,0 +1,683 @@
+<title>PromptForge — Architecture Overview</title>
+<style>
+  :root {
+    --bg: #F7F7F5;
+    --surface: #FFFFFF;
+    --surface-sunken: #F0F0EE;
+    --ink: #1C1C1E;
+    --ink-soft: #6E6E73;
+    --ink-faint: #9C9CA1;
+    --accent: #4453C9;
+    --accent-soft: #E8EAFB;
+    --hairline: #E5E5E5;
+    --danger: #B83A3A;
+    --danger-soft: #F7E9E9;
+    --ok: #2F7D4F;
+    --ok-soft: #E7F2EB;
+    --warn: #9C6B14;
+    --warn-soft: #FBF0DC;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --shadow: 0 1px 2px rgba(28,28,30,0.04), 0 8px 24px -12px rgba(28,28,30,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181C;
+      --surface: #1E1F24;
+      --surface-sunken: #191A1E;
+      --ink: #F0EFEC;
+      --ink-soft: #A3A3AA;
+      --ink-faint: #6C6C74;
+      --accent: #8891F0;
+      --accent-soft: #292C4C;
+      --hairline: #313239;
+      --danger: #E38080;
+      --danger-soft: #3A2323;
+      --ok: #6FC38F;
+      --ok-soft: #1F3226;
+      --warn: #D8AD5C;
+      --warn-soft: #362B15;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181C; --surface: #1E1F24; --surface-sunken: #191A1E;
+    --ink: #F0EFEC; --ink-soft: #A3A3AA; --ink-faint: #6C6C74;
+    --accent: #8891F0; --accent-soft: #292C4C;
+    --hairline: #313239; --danger: #E38080; --danger-soft: #3A2323;
+    --ok: #6FC38F; --ok-soft: #1F3226; --warn: #D8AD5C; --warn-soft: #362B15;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F7F5; --surface: #FFFFFF; --surface-sunken: #F0F0EE;
+    --ink: #1C1C1E; --ink-soft: #6E6E73; --ink-faint: #9C9CA1;
+    --accent: #4453C9; --accent-soft: #E8EAFB;
+    --hairline: #E5E5E5; --danger: #B83A3A; --danger-soft: #F7E9E9;
+    --ok: #2F7D4F; --ok-soft: #E7F2EB; --warn: #9C6B14; --warn-soft: #FBF0DC;
+    --shadow: 0 1px 2px rgba(28,28,30,0.04), 0 8px 24px -12px rgba(28,28,30,0.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-soft); color: var(--accent); }
+
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 40px 20px 40px 32px;
+    border-right: 1px solid var(--hairline);
+  }
+  nav.toc .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 4px;
+  }
+  nav.toc .proj {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    margin: 0 0 28px;
+  }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block;
+    padding: 6px 0;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13.5px;
+    border-left: 2px solid transparent;
+    padding-left: 12px;
+    margin-left: -13px;
+  }
+  nav.toc a:hover { color: var(--ink); }
+  nav.toc .status {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  main {
+    padding: 56px clamp(20px, 5vw, 72px) 120px;
+    min-width: 0;
+  }
+
+  .doc-head { max-width: 700px; margin-bottom: 56px; }
+  .doc-head .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .doc-head p.lede {
+    font-size: 17px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  section { max-width: 720px; margin: 0 0 64px; scroll-margin-top: 24px; }
+  section > h2 {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  section > h2 .num {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  section > .section-sub {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    margin: 0 0 24px;
+  }
+  h3 {
+    font-family: var(--mono);
+    font-size: 15.5px;
+    font-weight: 700;
+    margin: 28px 0 10px;
+  }
+  p { margin: 0 0 14px; max-width: 65ch; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 6px; max-width: 62ch; }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-sunken);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+  }
+
+  /* Decision cards */
+  .decision {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .decision h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; }
+  .decision .verdict-pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-weight: 700;
+  }
+  .decision .options {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+  }
+  .decision .option {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--surface-sunken);
+    border: 1px solid transparent;
+    font-size: 14.5px;
+  }
+  .decision .option.chosen {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .decision .option .mark {
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    font-weight: 700;
+  }
+  .decision .option.chosen .mark { color: var(--accent); }
+  .decision .option strong { display: block; margin-bottom: 2px; }
+  .decision .option span.body { color: var(--ink-soft); font-size: 13.5px; }
+  .decision .why {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--hairline);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+  .decision .why strong { color: var(--ink); }
+
+  /* AD blocks */
+  .ad {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+  }
+  .ad .ad-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .ad h3 { margin: 4px 0 12px; }
+  .ad dl { margin: 0; display: grid; grid-template-columns: 90px 1fr; gap: 8px 16px; }
+  .ad dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    padding-top: 2px;
+  }
+  .ad dd { margin: 0; font-size: 14.5px; }
+
+  /* Diagram boxes */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 20px 0 28px;
+    font-family: var(--mono);
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .flow .box {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 14px 16px;
+    flex: 1 1 120px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .flow .box .label { font-weight: 700; }
+  .flow .box .sub { color: var(--ink-soft); font-size: 11px; }
+  .flow .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-faint);
+    padding: 0 6px;
+    font-size: 16px;
+    flex: 0 0 auto;
+  }
+  .flow.vertical { flex-direction: column; }
+  .flow.vertical .arrow { transform: rotate(90deg); padding: 2px 0; }
+
+  .rule-banner {
+    background: var(--surface-sunken);
+    border: 1px dashed var(--hairline);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 4px 0 24px;
+  }
+  .rule-banner code { background: var(--surface); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td {
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  td code { white-space: nowrap; }
+
+  /* File tree */
+  pre.tree {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 0 0 20px;
+  }
+  pre.tree .comment { color: var(--ink-faint); }
+  pre.tree .dir { color: var(--accent); font-weight: 700; }
+
+  /* Review / QA section */
+  .qa-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 20px 0 28px;
+  }
+  .qa-stat {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .qa-stat .n { font-family: var(--mono); font-size: 26px; font-weight: 700; }
+  .qa-stat .l { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .finding {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--hairline);
+    align-items: start;
+  }
+  .finding:last-child { border-bottom: none; }
+  .sev {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 3px 10px;
+    text-align: center;
+    height: fit-content;
+  }
+  .sev.high { background: var(--danger-soft); color: var(--danger); }
+  .sev.medium { background: var(--warn-soft); color: var(--warn); }
+  .sev.low { background: var(--surface-sunken); color: var(--ink-faint); }
+  .finding .desc { font-size: 14px; }
+  .finding .desc .fix { color: var(--ok); font-size: 13px; margin-top: 4px; }
+  .finding .desc .fix::before { content: "→ fixed: "; color: var(--ink-faint); }
+
+  .deferred-list {
+    display: grid;
+    gap: 10px;
+  }
+  .deferred-item {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 10px;
+    font-size: 14.5px;
+  }
+  .deferred-item .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ink-faint);
+    margin-top: 8px;
+  }
+  .deferred-item strong { display: block; margin-bottom: 2px; }
+  .deferred-item span { color: var(--ink-soft); font-size: 13.5px; }
+
+  footer {
+    max-width: 720px;
+    padding-top: 24px;
+    border-top: 1px solid var(--hairline);
+    color: var(--ink-faint);
+    font-size: 12.5px;
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--hairline); padding: 24px 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="Table of contents">
+    <p class="eyebrow">Architecture Overview</p>
+    <p class="proj">PromptForge</p>
+    <ul>
+      <li><a href="#vision">Vision</a></li>
+      <li><a href="#paradigm">Design paradigm</a></li>
+      <li><a href="#decisions">Key decisions</a></li>
+      <li><a href="#invariants">Invariants (AD-1–3)</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#structure">Structure</a></li>
+      <li><a href="#qa">Review process</a></li>
+      <li><a href="#deferred">Deferred</a></li>
+    </ul>
+    <div class="status">
+      <span>status: final</span>
+      <span>altitude: feature</span>
+      <span>2026-07-08</span>
+    </div>
+  </nav>
+
+  <main>
+    <div class="doc-head">
+      <p class="kicker">Solution design — for review</p>
+      <h1>How PromptForge is put together, and why</h1>
+      <p class="lede">A one-day build, walked through the way the decisions actually got made — including the trade-offs that were considered and rejected, not just the ones that were kept.</p>
+    </div>
+
+    <section id="vision">
+      <h2><span class="num">§1</span> Vision</h2>
+      <p>PromptForge is a personal, offline-first prompt library for someone who works across several AI tools in a day. The entire product is one loop: save a prompt once, find it in seconds, copy it, paste it into whatever tool is open. No accounts, no server, no sync — everything lives on one phone.</p>
+      <p>That constraint — genuinely nothing over the network, ever — is the single biggest lever on everything below. A large share of what a typical mobile architecture has to solve (auth, offline/online reconciliation, API contracts, caching) simply doesn't exist here. What's left is a small, real problem: keep one local list of prompts consistent under a five-screen UI.</p>
+    </section>
+
+    <section id="paradigm">
+      <h2><span class="num">§2</span> Design paradigm</h2>
+      <p class="section-sub">Layered, four layers, one direction of dependency.</p>
+      <div class="flow">
+        <div class="box"><span class="label">Presentation</span><span class="sub">screens + components</span></div>
+        <div class="arrow">→</div>
+        <div class="box"><span class="label">State</span><span class="sub">PromptsProvider</span></div>
+        <div class="arrow">→</div>
+        <div class="box"><span class="label">Repository</span><span class="sub">promptRepository</span></div>
+        <div class="arrow">→</div>
+        <div class="box"><span class="label">Storage</span><span class="sub">AsyncStorage</span></div>
+      </div>
+      <p>No layer skips forward or reaches backward. A screen never touches AsyncStorage or the Repository directly — it only ever calls one hook, <code>usePrompts()</code>. That single rule is what the rest of the spine hangs on: with one owner at every hand-off, there's no seam where two screens built at different times could quietly disagree about how data is read, written, or shaped.</p>
+    </section>
+
+    <section id="decisions">
+      <h2><span class="num">§3</span> Key decisions</h2>
+      <p class="section-sub">The real forks — shown with what was considered and rejected, not just the conclusion.</p>
+
+      <div class="decision">
+        <h3>Managed Expo <span class="verdict-pill">chosen</span></h3>
+        <div class="options">
+          <div class="option chosen"><span class="mark">✓</span><div><strong>Expo (managed)</strong><span class="body">Native builds, linking, and platform config handled for you. Live testing on-device via Expo Go, zero native build step.</span></div></div>
+          <div class="option"><span class="mark">–</span><div><strong>Bare React Native CLI</strong><span class="body">Full native control, but requires a working Xcode/Android Studio toolchain and manual linking.</span></div></div>
+        </div>
+        <p class="why"><strong>Why:</strong> first React Native project, one-day timebox, and — the deciding fact — the build machine isn't set up for native mobile development. Expo Go removes the native toolchain from the critical path entirely.</p>
+      </div>
+
+      <div class="decision">
+        <h3>AsyncStorage, one JSON blob <span class="verdict-pill">chosen</span></h3>
+        <div class="options">
+          <div class="option chosen"><span class="mark">✓</span><div><strong>AsyncStorage</strong><span class="body">Simplest possible API, works in Expo Go with zero setup, no schema. One JSON array holding the whole library, filtered in JS.</span></div></div>
+          <div class="option"><span class="mark">–</span><div><strong>expo-sqlite</strong><span class="body">A real relational database — more correct for data with relationships, but Prompt has none. Schema/migration overhead this app doesn't need.</span></div></div>
+          <div class="option"><span class="mark">–</span><div><strong>react-native-mmkv</strong><span class="body">~20–30× faster than AsyncStorage, but a native module — breaks Expo Go, needs a custom dev-client build for a performance win this app's data size will never notice.</span></div></div>
+        </div>
+        <p class="why"><strong>Why:</strong> a personal library, one flat entity, no relationships, no meaningful scale. "Not designed to scale — just a personal app for showcasing," in the builder's own words. The fastest option was explicitly rejected because it would have cost the one thing that actually matters here: staying inside Expo Go.</p>
+      </div>
+
+      <div class="decision">
+        <h3>Expo Router <span class="verdict-pill">chosen</span></h3>
+        <div class="options">
+          <div class="option chosen"><span class="mark">✓</span><div><strong>Expo Router</strong><span class="body">File-based routing, the current default for new Expo apps (SDK 56). Maps almost exactly onto the app's 3-screen, one-level-deep IA.</span></div></div>
+        </div>
+        <p class="why"><strong>Why:</strong> no real trade-off here — it's the paved path, and nothing about this app's navigation needs anything hand-rolled React Navigation would offer instead.</p>
+      </div>
+
+      <div class="decision">
+        <h3>Single Repository module <span class="verdict-pill">chosen</span></h3>
+        <div class="options">
+          <div class="option chosen"><span class="mark">✓</span><div><strong>One data-access gateway</strong><span class="body">Every read/write to AsyncStorage goes through exactly one module. No screen touches storage directly.</span></div></div>
+        </div>
+        <p class="why"><strong>Why:</strong> "I don't want anyone else messing with data, except that module" — the builder's own framing, and the one architectural rule this spine actually enforces in stone (AD-1, below).</p>
+      </div>
+
+      <div class="decision">
+        <h3>React Context, no state library <span class="verdict-pill">chosen</span></h3>
+        <div class="options">
+          <div class="option chosen"><span class="mark">✓</span><div><strong>React Context</strong><span class="body">One provider, one <code>usePrompts()</code> hook, no new dependency.</span></div></div>
+          <div class="option"><span class="mark">–</span><div><strong>Zustand / Redux</strong><span class="body">Solves problems — complex cross-cutting state, middleware, devtools — this 3-screen app doesn't have.</span></div></div>
+        </div>
+        <p class="why"><strong>Why:</strong> three screens, one entity. A state library would be solving a problem that doesn't exist here.</p>
+      </div>
+    </section>
+
+    <section id="invariants">
+      <h2><span class="num">§4</span> Invariants (AD-1–3)</h2>
+      <p class="section-sub">The rules a future screen can't safely violate, even by accident.</p>
+
+      <div class="ad">
+        <span class="ad-id">AD-1</span>
+        <h3>Single storage gateway</h3>
+        <dl>
+          <dt>Prevents</dt><dd>Two screens serializing or mutating the stored JSON differently, corrupting or desyncing the library.</dd>
+          <dt>Rule</dt><dd>All AsyncStorage access goes through <code>lib/promptRepository.ts</code>. Every write acts on the single in-memory list <code>PromptsProvider</code> already holds — never a fresh re-read — which is what closes a subtle race: two near-simultaneous actions (say, a delete and a favorite-toggle) apply in sequence against one shared copy of the data, instead of each reading a stale snapshot and silently overwriting the other's change.</dd>
+        </dl>
+      </div>
+
+      <div class="ad">
+        <span class="ad-id">AD-2</span>
+        <h3>Single state provider</h3>
+        <dl>
+          <dt>Prevents</dt><dd>A screen holding its own local copy of the list that drifts from what's actually stored.</dd>
+          <dt>Rule</dt><dd>One <code>PromptsProvider</code>, one <code>usePrompts()</code> hook. Search, Favorites-only, and Category filter are three independent fields that AND together — never one exclusive mode — so search and a filter always combine rather than fight each other.</dd>
+        </dl>
+      </div>
+
+      <div class="ad">
+        <span class="ad-id">AD-3</span>
+        <h3>Navigation mirrors the UX exactly</h3>
+        <dl>
+          <dt>Prevents</dt><dd>Navigation drifting from the one-level-deep stack the UX design already committed to.</dd>
+          <dt>Rule</dt><dd>Library, Detail, and Edit are sibling routes — Edit is never nested inside Detail's folder. Opening Edit from Detail <em>replaces</em> Detail on the stack rather than pushing on top of it, so the stack is never more than one screen deep from Library.</dd>
+        </dl>
+      </div>
+      <div class="rule-banner">This exact rule caught a real bug during review — the first draft's file layout violated it. Full story in <a href="#qa">§7</a>.</div>
+    </section>
+
+    <section id="stack">
+      <h2><span class="num">§5</span> Stack</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Version</th></tr></thead>
+          <tbody>
+            <tr><td>Expo SDK</td><td><code>56</code></td></tr>
+            <tr><td>React Native</td><td><code>0.85</code></td></tr>
+            <tr><td>React</td><td><code>19.2</code></td></tr>
+            <tr><td>Expo Router</td><td>bundled with SDK 56</td></tr>
+            <tr><td>NativeWind</td><td><code>^4.2.6</code> (pinned — v5 is a breaking CSS-first rewrite)</td></tr>
+            <tr><td><code>@react-native-async-storage/async-storage</code></td><td>via <code>npx expo install</code></td></tr>
+            <tr><td><code>expo-clipboard</code></td><td><code>56.0.4</code></td></tr>
+            <tr><td><code>expo-crypto</code></td><td><code>56.0.4</code></td></tr>
+            <tr><td><code>expo-splash-screen</code></td><td>via <code>npx expo install</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="structure">
+      <h2><span class="num">§6</span> Structure</h2>
+      <pre class="tree"><span class="comment"># app/ — Expo Router file-based routes (Presentation)</span>
+<span class="dir">app/</span>
+  index.tsx                <span class="comment"># Library — search, filters, card list, FAB</span>
+  <span class="dir">prompt/</span>
+    [id].tsx                <span class="comment"># Prompt Detail</span>
+    create.tsx               <span class="comment"># Create</span>
+    <span class="dir">edit/</span>
+      [id].tsx                <span class="comment"># Edit — sibling of the two above, not nested (AD-3)</span>
+  _layout.tsx                <span class="comment"># Root stack, wraps app in PromptsProvider</span>
+
+<span class="comment"># components/ — 1:1 with the UX spec's named components</span>
+<span class="dir">components/</span>
+  PromptCard.tsx  FAB.tsx  SearchBar.tsx  FilterRow.tsx
+  CategoryBadge.tsx  TagChip.tsx  Toast.tsx  ConfirmDialog.tsx
+  DetailActionRow.tsx  FormInput.tsx
+
+<span class="comment"># lib/ — the app's only two "rule enforcers" (AD-1, AD-2), plus shared constants</span>
+<span class="dir">lib/</span>
+  promptRepository.ts       <span class="comment"># sole AsyncStorage gateway (AD-1)</span>
+  PromptsProvider.tsx        <span class="comment"># Context + usePrompts() (AD-2)</span>
+  categories.ts               <span class="comment"># the fixed 6-category list, single source</span>
+  theme.ts                     <span class="comment"># design tokens, single source</span>
+
+<span class="dir">types/</span>
+  prompt.ts                 <span class="comment"># the one entity in this app</span></pre>
+      <p><code>Prompt</code> is the only entity — <code>id</code>, <code>title</code>, <code>content</code>, <code>category</code>, <code>tags[]</code>, <code>isFavorite</code>, <code>createdAt</code>, <code>updatedAt</code>. No relationships to diagram. The Repository is the only code allowed to construct or mutate one.</p>
+    </section>
+
+    <section id="qa">
+      <h2><span class="num">§7</span> How this was reviewed</h2>
+      <p class="section-sub">Three independent passes ran against the spine before it was called done.</p>
+      <div class="qa-summary">
+        <div class="qa-stat"><div class="n">3</div><div class="l">reviewer lenses</div></div>
+        <div class="qa-stat"><div class="n">0</div><div class="l">critical findings</div></div>
+        <div class="qa-stat"><div class="n">4</div><div class="l">high findings</div></div>
+        <div class="qa-stat"><div class="n">100%</div><div class="l">fixed before close</div></div>
+      </div>
+      <p>A <strong>rubric pass</strong> judged the spine against a good-architecture checklist. A <strong>version-verification pass</strong> independently re-checked every named technology and version against the live web, rather than trusting what was asserted while drafting. An <strong>adversarial pass</strong> tried to construct concrete scenarios where two screens, each following every rule to the letter, could still end up building something inconsistent.</p>
+
+      <h3>What the adversarial pass actually caught</h3>
+      <div class="finding">
+        <span class="sev high">High</span>
+        <div class="desc">The Edit route was nested under Detail's folder in the first draft, directly contradicting the "one level deep" navigation rule stated two paragraphs above it in the same document.<div class="fix">flattened Edit to a sibling route; Edit now replaces Detail on the stack instead of pushing on top</div></div>
+      </div>
+      <div class="finding">
+        <span class="sev high">High</span>
+        <div class="desc">No rule specified how concurrent writes resolve — two rapid actions (e.g. delete + favorite-toggle) could each read a stale copy of the list and silently undo each other.<div class="fix">writes now always act on the one in-memory list the app already holds, never a fresh re-read — the race has nowhere to occur</div></div>
+      </div>
+      <div class="finding">
+        <span class="sev high">High</span>
+        <div class="desc">The category filter's "off" state and a prompt's "no category" value could have used the same sentinel, making "clear the filter" and "show only uncategorized prompts" ambiguous.<div class="fix">typed as two distinct values — <code>null</code> for "filter off" vs. <code>''</code> for "prompt has no category"</div></div>
+      </div>
+      <div class="finding">
+        <span class="sev high">High</span>
+        <div class="desc">Whether favoriting a prompt should count as "editing" it (and bump the last-modified timestamp) was never decided anywhere.<div class="fix">favoriting is now its own Repository function and explicitly does not touch <code>updatedAt</code> — favoriting isn't editing content</div></div>
+      </div>
+      <div class="finding">
+        <span class="sev medium">Medium</span>
+        <div class="desc">The single-source-of-truth discipline was applied to data (AD-1) but not to the app's visual tokens — colors and spacing had no equivalent single home in code.<div class="fix">added <code>lib/theme.ts</code> as the one place design tokens live; components reference it rather than hardcoding values</div></div>
+      </div>
+      <div class="finding">
+        <span class="sev low">Low</span>
+        <div class="desc">A newly-added dependency (<code>expo-splash-screen</code>) was the only Stack entry without an independent currency check, and turned up an open upstream issue on a preview build.<div class="fix">documented a plain-render fallback in case the splash-screen approach proves unreliable at implementation time</div></div>
+      </div>
+    </section>
+
+    <section id="deferred">
+      <h2><span class="num">§8</span> Deferred</h2>
+      <p class="section-sub">Decided not to decide yet — and why that's safe.</p>
+      <div class="deferred-list">
+        <div class="deferred-item"><span class="dot"></span><div><strong>AI-assisted prompt improvement.</strong><span>The product vision names it, but it needs an LLM integration this build doesn't have. No AI/network layer exists anywhere in this stack yet — adding one is a future revision, not a gap in this one.</span></div></div>
+        <div class="deferred-item"><span class="dot"></span><div><strong>App store submission / production build.</strong><span>Out of scope for a showcase build. Runs via Expo Go / a local dev build.</span></div></div>
+        <div class="deferred-item"><span class="dot"></span><div><strong>Dark mode.</strong><span>Deferred at the design layer. Tokens are already structured so adding dark values later doesn't require restructuring anything.</span></div></div>
+        <div class="deferred-item"><span class="dot"></span><div><strong>Data export/backup.</strong><span>An accepted risk for v1 — uninstalling the app loses the library. The Repository is the natural extension point if this changes.</span></div></div>
+        <div class="deferred-item"><span class="dot"></span><div><strong>Automated testing.</strong><span>Not decided, out of scope for a one-day build. The Repository is the obvious unit-test seam if this gets picked up later.</span></div></div>
+      </div>
+    </section>
+
+    <footer>
+      Derived from ARCHITECTURE-SPINE.md · prompt-forge · 2026-07-08
+    </footer>
+  </main>
+</div>
