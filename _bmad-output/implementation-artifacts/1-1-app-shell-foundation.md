@@ -4,7 +4,7 @@ baseline_commit: 34138cb353d691da5c37a02c6a2fca530839866f
 
 # Story 1.1: App Shell & Foundation
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -165,18 +165,32 @@ Claude Sonnet 5 (claude-sonnet-5)
 - `nativewind-env.d.ts` (new)
 - `jest.setup.js` (new)
 - `.vscode/` (new, from scaffold)
-- `assets/` (new, from scaffold)
-- `lib/theme.ts` (new)
+- `assets/` (new, from scaffold; `assets/expo.icon/` subsequently removed — see Change Log)
+- `lib/theme.ts` (new, later reduced to a typed re-export — see Change Log)
+- `lib/theme.tokens.js` (new — see Change Log)
 - `types/prompt.ts` (new)
-- `lib/promptRepository.ts` (new)
-- `lib/promptRepository.test.ts` (new)
-- `lib/PromptsProvider.tsx` (new)
-- `app/_layout.tsx` (new)
+- `lib/promptRepository.ts` (new, later hardened — see Change Log)
+- `lib/promptRepository.test.ts` (new, later updated — see Change Log)
+- `lib/PromptsProvider.tsx` (new, later simplified — see Change Log)
+- `app/_layout.tsx` (new, later updated — see Change Log)
 - `app/index.tsx` (new)
-- `components/FAB.tsx` (new)
+- `components/FAB.tsx` (new, later updated — see Change Log)
+- `app.json` (new, later updated — see Change Log)
+- `tailwind.config.js` (new, later updated — see Change Log)
 
 ## Change Log
 
 - 2026-07-09: Implemented Tasks 1–9 in full and Task 10's network-check subtask. Scaffolded Expo Router app (SDK 56) with NativeWind, design tokens, Prompt type, read-only Repository/Provider skeleton, splash-gated hydration, Library screen empty state, and FAB. Added Jest unit tests for the Repository. Left three device/simulator-dependent subtasks (Task 1, Task 10) pending user verification — no device/simulator available in this environment.
 - 2026-07-09: Bumped project SDK 56 → 57 after live device testing showed the story's original SDK 56 target was incompatible with the actually-available Expo Go client (user's Play Store install reported SDK 54 support; the expo.dev direct download reported SDK 57 — neither matched 56). Re-verified `tsc`/`lint`/`jest`/`expo export` all clean on SDK 57.
 - 2026-07-09: Completed device verification with user on Android via Expo Go — confirmed splash → Library empty state → FAB rendering, and airplane-mode continuity after initial load (AC #1, #2, #4). iOS device/simulator unavailable to user; accepted `expo export --platform ios` clean compilation as substitute evidence per user decision, documented as a known gap. All tasks now complete; story moved to `review`.
+- 2026-07-09: Ran `/code-review` (high effort, 8 finder angles + verification) against the story's diff. 9 findings survived verification and were all fixed:
+  - **`tailwind.config.js` required `lib/theme.ts` directly, relying on Node's native TS type-stripping with no `engines` pin — a real build-breaking portability risk on other Node versions/CI.** Fixed by splitting the raw token values into a new plain-CommonJS `lib/theme.tokens.js`; `tailwind.config.js` now requires that file, and `lib/theme.ts` re-exports the same values (typed) for app code — still one source of truth, no duplicated hex values.
+  - **`lib/promptRepository.ts`'s `getAllPrompts()` cast `JSON.parse(raw)` to `Prompt[]` with no shape check**, which could crash the Library screen on a corrupted non-array stored value. Fixed with an `Array.isArray()` guard, falling back to `[]`.
+  - **`components/FAB.tsx` had no safe-area awareness**, risking the FAB rendering under Android's edge-to-edge gesture bar. Fixed by wrapping the app in `SafeAreaProvider` (`app/_layout.tsx`) and offsetting the FAB by `useSafeAreaInsets()` on top of the base spacing token.
+  - **`app/_layout.tsx` silently swallowed `SplashScreen.hideAsync()`/`preventAutoHideAsync()` failures**, which could leave the splash frozen with no diagnostic trail. Fixed by logging the error via `console.error` in both catches.
+  - **`app.json`'s `ios.icon` pointed at a new Xcode 16 "Icon Composer" bundle**, verified only via JS-only `expo export`, not a native build — a real native-build risk on older toolchains. Fixed by removing the override so iOS falls back to the standard top-level PNG icon; the now-unused `assets/expo.icon/` bundle was deleted.
+  - **`lib/theme.ts`'s custom spacing scale silently diverges from Tailwind's defaults at keys 5/6** (24px/32px vs. Tailwind's standard 20px/24px). Confirmed correct per `DESIGN.md`'s frontmatter (not a bug) and documented with a comment in `lib/theme.tokens.js` to prevent future confusion.
+  - **`lib/theme.ts`'s `typography` export was unused/dead code** relative to the Tailwind config. Documented with a comment clarifying it's intentionally excluded (platform-native notes, not CSS values) and reserved for future direct use by components.
+  - **`lib/PromptsProvider.tsx` tracked `isHydrated` as a separate `useState` fully derivable from `prompts`.** Simplified: `prompts` is now `Prompt[] | null`, and `isHydrated` is derived as `prompts !== null`.
+  - **`lib/promptRepository.test.ts` hardcoded the storage-key literal a second time instead of importing it.** Fixed by exporting `STORAGE_KEY` from `lib/promptRepository.ts` and importing it in the test.
+  - All fixes re-verified clean: `tsc --noEmit`, `expo lint`, `jest` (3/3), plus a direct `node -e` eval confirming the new Tailwind config resolves correctly. User re-tested live on Android via Expo Go post-fix — confirmed splash → Library empty state → FAB rendering unchanged, no errors. Story moved to `done`.

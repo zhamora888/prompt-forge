@@ -1,4 +1,4 @@
-const { colors, rounded, spacing } = require("./lib/theme.ts");
+const { colors, rounded, spacing } = require("./lib/theme.tokens.js");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

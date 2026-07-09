@@ -10,18 +10,14 @@ type PromptsContextValue = {
 const PromptsContext = createContext<PromptsContextValue | undefined>(undefined);
 
 export function PromptsProvider({ children }: { children: ReactNode }) {
-  const [prompts, setPrompts] = useState<Prompt[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [prompts, setPrompts] = useState<Prompt[] | null>(null);
 
   useEffect(() => {
-    getAllPrompts().then((loaded) => {
-      setPrompts(loaded);
-      setIsHydrated(true);
-    });
+    getAllPrompts().then(setPrompts);
   }, []);
 
   return (
-    <PromptsContext.Provider value={{ prompts, isHydrated }}>
+    <PromptsContext.Provider value={{ prompts: prompts ?? [], isHydrated: prompts !== null }}>
       {children}
     </PromptsContext.Provider>
   );

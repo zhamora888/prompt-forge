@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getAllPrompts } from "@/lib/promptRepository";
+import { getAllPrompts, STORAGE_KEY } from "@/lib/promptRepository";
 import type { Prompt } from "@/types/prompt";
 
 describe("promptRepository.getAllPrompts", () => {
@@ -25,7 +25,7 @@ describe("promptRepository.getAllPrompts", () => {
         updatedAt: "2026-07-08T00:00:00.000Z",
       },
     ];
-    await AsyncStorage.setItem("@promptforge/prompts", JSON.stringify(stored));
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
 
     await expect(getAllPrompts()).resolves.toEqual(stored);
   });
