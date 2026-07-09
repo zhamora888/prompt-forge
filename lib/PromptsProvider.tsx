@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPrompt as createPromptInRepository, getAllPrompts } from "@/lib/promptRepository";
-import type { Prompt } from "@/types/prompt";
-
-type PromptDraft = { title: string; content: string; category: string; tags: string[] };
+import type { Prompt, PromptDraft } from "@/types/prompt";
 
 type PromptsContextValue = {
   prompts: Prompt[];

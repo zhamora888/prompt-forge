@@ -4,7 +4,7 @@ baseline_commit: 2adfb01c1301b22e12849285eee4bbb041d3178a
 
 # Story 1.2: Create a Prompt
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -95,6 +95,20 @@ so that I can find and reuse it later instead of retyping it from memory.
   - [x] Confirm the whole Create→Save flow works in airplane mode — no network call is introduced anywhere in this story's code (grep for `fetch`/`XMLHttpRequest`/`axios`, matching Story 1.1's verification method).
   - [x] Re-run `tsc --noEmit`, `expo lint`, and `jest`; confirm all pass with zero regressions to Story 1.1's existing behavior (fresh-install empty state still shows exactly "No prompts yet.", FAB still renders on every Library state including empty, splash-gated hydration unaffected).
   - [x] Live-verify on device via Expo Go if available (Story 1.1 precedent — no simulator/device exists in this CLI environment; ask the user to verify the FAB→Create→Save→Library round trip and the first-card-appears behavior, same as Story 1.1's device-verification handoff). **Verified live on Android (Samsung S25 Ultra) via Expo Go — see Debug Log.**
+
+### Review Findings
+
+- [x] [Review][Patch] Unsubmitted tag draft is silently discarded on Save — If a user types text into the tag-entry field but taps Save before submitting it (return/done), `handleSave` only reads the already-committed `tags` array; the in-progress `tagDraft` text is dropped with no warning. **Resolution (user decision):** auto-commit any non-empty `tagDraft` into `tags` at the start of `handleSave`, before building the save payload. [app/prompt/create.tsx:26-38]
+- [x] [Review][Patch] Duplicate tag text breaks per-chip removal and violates AC #7 — `handleSubmitTag` has no dedup check; two chips with identical text get an identical React `key`, and `handleRemoveTag`'s `filter(existing => existing !== tag)` removes every matching instance at once instead of just the tapped chip. [app/prompt/create.tsx:22-33,59-60]
+- [x] [Review][Patch] Save button has no double-tap guard, risking duplicate prompt creation — `canSave` never accounts for an in-flight save, so the Save button stays enabled through the `await createPrompt(...)` window; a fast double-tap can create two identical prompts before `router.back()` unmounts the screen. [app/prompt/create.tsx:20,35-38,86-93]
+- [x] [Review][Patch] FlatList has no bottom clearance for the floating FAB, so cards can render under it — `contentContainerStyle={{ padding: 16, gap: 12 }}` gives a flat 16px bottom padding with no reserved space for the absolutely-positioned FAB (56px + insets.bottom). [app/index.tsx:19-24]
+- [x] [Review][Patch] FormInput's label isn't associated with its TextInput for screen readers — the `Text` label and `TextInput` are unassociated siblings; VoiceOver/TalkBack won't announce the label when the field is focused. [components/FormInput.tsx:19-20]
+- [x] [Review][Patch] PromptDraft type is declared twice (Provider + Repository) and can drift — the same `{ title, content, category, tags }` shape is independently declared in both files instead of sharing one type. [lib/PromptsProvider.tsx:5, lib/promptRepository.ts:23]
+- [x] [Review][Patch] Create screen only applies `insets.top`, not `insets.bottom`, to its ScrollView padding — the same safe-area pattern used for `insets.top` isn't applied to the bottom edge. [app/prompt/create.tsx:43]
+
+- [x] [Review][Defer] router.back() has no fallback if Create is reached without back-history (e.g. a direct deep link) [app/prompt/create.tsx:37] — deferred, pre-existing: no deep-linking entry point exists in any current story.
+- [x] [Review][Defer] Tags aren't case-normalized, allowing near-duplicate tags (e.g. "Work"/"work") [app/prompt/create.tsx:26-33] — deferred, pre-existing: relevant once Story 1.6 (search) or tag-based filtering ships.
+- [x] [Review][Defer] FAB has no debounce against rapid double-tap, risking a duplicate route push [components/FAB.tsx:14] — deferred, pre-existing: low-impact, common RN pattern gap not required by any AC.
 
 ## Dev Notes
 
@@ -201,3 +215,4 @@ claude-sonnet-5
   - Added "My Prompts" (Library) and "New Prompt" (Create) page titles at the user's request — neither screen had a heading before, since the root layout uses `headerShown: false`.
   User then asked to remove Category/Tags from the Create form since they "aren't really working yet." Clarified that Tags are fully functional (Category is the one that's a non-interactive placeholder); user chose to remove Category only and keep Tags. **This means AC #1's literal "Category...field" clause is no longer satisfied — accepted as a known, deliberate gap per explicit user instruction; category is still always persisted as `""` so AC #4 is unaffected.** All fixes re-verified clean: `tsc --noEmit`, `expo lint`, `jest` (6/6).
 - 2026-07-09: User confirmed the full Task 11 round trip live on Android (Samsung S25 Ultra) via Expo Go: tapped the FAB, entered a Title and Content, added and removed several tags, tapped Save, returned to the Library screen, and saw the new Prompt(s) appear as cards (AC #1, #2, #3 implicit, #6, #7, #10 implicit). No Edit/Delete exists yet (Stories 1.4/1.5), so created prompts persist as-is. Task 11 fully complete; all story tasks now checked.
+- 2026-07-09: Code review (Blind Hunter + Edge Case Hunter + Acceptance Auditor) ran against baseline `2adfb01`. 1 decision-needed and 7 patch findings resolved and fixed; 3 deferred (pre-existing, out of scope); 10 dismissed (2 verified false positives re: hydration-gated `RootNavigator`, 1 verified false positive re: RN flex layout not producing overlapping tap targets, and 7 matching already-documented/approved deviations or the story's own explicit testing/validation scope decisions). Fixes: auto-commit a pending tag draft on Save, dedup tag entries, guard Save against double-tap, reserve FlatList bottom padding for the FAB, associate `FormInput`'s label with its `TextInput` for screen readers, extract a shared `PromptDraft` type to `types/prompt.ts`, and apply `insets.bottom` to the Create screen's padding. Re-verified clean: `tsc --noEmit`, `expo lint`, `jest` (6/6). See Tasks/Subtasks → Review Findings for the full, itemized list.

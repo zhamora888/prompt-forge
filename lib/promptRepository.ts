@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
-import type { Prompt } from "@/types/prompt";
+import type { Prompt, PromptDraft } from "@/types/prompt";
 
 export const STORAGE_KEY = "@promptforge/prompts";
 
@@ -18,10 +18,7 @@ export async function getAllPrompts(): Promise<Prompt[]> {
   }
 }
 
-export async function createPrompt(
-  currentPrompts: Prompt[],
-  draft: { title: string; content: string; category: string; tags: string[] },
-): Promise<Prompt[]> {
+export async function createPrompt(currentPrompts: Prompt[], draft: PromptDraft): Promise<Prompt[]> {
   const now = new Date().toISOString();
   const prompt: Prompt = {
     id: Crypto.randomUUID(),

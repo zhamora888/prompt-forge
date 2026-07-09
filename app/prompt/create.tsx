@@ -16,8 +16,9 @@ export default function CreatePrompt() {
   const [tags, setTags] = useState<string[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const canSave = title.trim() !== "" && content.trim() !== "";
+  const canSave = title.trim() !== "" && content.trim() !== "" && !isSaving;
 
   function handleRemoveTag(tag: string) {
     setTags((current) => current.filter((existing) => existing !== tag));
@@ -25,7 +26,7 @@ export default function CreatePrompt() {
 
   function handleSubmitTag() {
     const trimmed = tagDraft.trim();
-    if (trimmed !== "") {
+    if (trimmed !== "" && !tags.includes(trimmed)) {
       setTags((current) => [...current, trimmed]);
     }
     setTagDraft("");
@@ -33,14 +34,22 @@ export default function CreatePrompt() {
   }
 
   async function handleSave() {
-    await createPrompt({ title: title.trim(), content: content.trim(), category: "", tags });
+    if (isSaving) {
+      return;
+    }
+    setIsSaving(true);
+
+    const trimmedDraft = tagDraft.trim();
+    const finalTags = trimmedDraft !== "" && !tags.includes(trimmedDraft) ? [...tags, trimmedDraft] : tags;
+
+    await createPrompt({ title: title.trim(), content: content.trim(), category: "", tags: finalTags });
     router.back();
   }
 
   return (
     <ScrollView
       className="flex-1 bg-surface-base"
-      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, gap: 16 }}
+      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16, gap: 16 }}
     >
       <Text className="text-ink-primary text-2xl font-semibold">New Prompt</Text>
 

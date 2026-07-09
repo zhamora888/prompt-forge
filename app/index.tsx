@@ -20,7 +20,7 @@ export default function Library() {
           data={prompts}
           keyExtractor={(prompt) => prompt.id}
           renderItem={({ item }) => <PromptCard prompt={item} />}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 96, gap: 12 }}
         />
       )}
       <FAB />

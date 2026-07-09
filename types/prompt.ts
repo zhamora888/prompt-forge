@@ -8,3 +8,10 @@ export type Prompt = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PromptDraft = {
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+};

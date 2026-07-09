@@ -21,6 +21,7 @@ export function FormInput({ label, value, onChangeText, placeholder, multiline, 
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        accessibilityLabel={label}
         placeholderTextColor={colors["ink-disabled"]}
         multiline={multiline}
         onSubmitEditing={onSubmitEditing}
