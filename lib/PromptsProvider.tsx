@@ -1,10 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { getAllPrompts } from "@/lib/promptRepository";
+import { createPrompt as createPromptInRepository, getAllPrompts } from "@/lib/promptRepository";
 import type { Prompt } from "@/types/prompt";
+
+type PromptDraft = { title: string; content: string; category: string; tags: string[] };
 
 type PromptsContextValue = {
   prompts: Prompt[];
   isHydrated: boolean;
+  createPrompt: (draft: PromptDraft) => Promise<void>;
 };
 
 const PromptsContext = createContext<PromptsContextValue | undefined>(undefined);
@@ -16,8 +19,13 @@ export function PromptsProvider({ children }: { children: ReactNode }) {
     getAllPrompts().then(setPrompts);
   }, []);
 
+  async function createPrompt(draft: PromptDraft) {
+    const updated = await createPromptInRepository(prompts ?? [], draft);
+    setPrompts(updated);
+  }
+
   return (
-    <PromptsContext.Provider value={{ prompts: prompts ?? [], isHydrated: prompts !== null }}>
+    <PromptsContext.Provider value={{ prompts: prompts ?? [], isHydrated: prompts !== null, createPrompt }}>
       {children}
     </PromptsContext.Provider>
   );
